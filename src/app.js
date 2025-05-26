@@ -2,7 +2,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 
 dotenv.config(); 
-
+const schedulesRoutes = require('./routes/schedules');
 const turnsRoutes = require('./routes/turns');
 const { connectDB } = require('./config/db'); // Import connectDB
 
@@ -11,8 +11,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json()); // Enable JSON body parsing
 
+
 // API Routes
 app.use('/api/turns', turnsRoutes);
+app.use('/api/turns', turnsRoutes);
+app.use('/api/schedules', schedulesRoutes);
+
 
 app.get('/', (req, res) => {
     res.send('Welcome to the Turns API!');
