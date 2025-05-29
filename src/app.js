@@ -1,38 +1,30 @@
 const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config();
 
-dotenv.config(); 
-const schedulesRoutes = require('./routes/schedules');
 const turnsRoutes = require('./routes/turns');
-const { connectDB } = require('./config/db'); // Import connectDB
+const schedulesRoutes = require('./routes/schedules');
+const { connectDB } = require('./config/db');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-app.use(express.json()); // Enable JSON body parsing
-
+app.use(express.json());
 
 // API Routes
 app.use('/api/turns', turnsRoutes);
-app.use('/api/turns', turnsRoutes);
 app.use('/api/schedules', schedulesRoutes);
 
-
-app.get('/', (req, res) => {
-    res.send('Welcome to the Turns API!');
-});
-
-// Connect to DB and then start server
 async function startServer() {
     try {
-        await connectDB(); // Wait for DB connection
+        await connectDB();
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);
-        process.exit(1); // Exit if server can't start due to DB issue
+        process.exit(1);
     }
 }
 
-startServer(); // Call the async function to start everything
+startServer();

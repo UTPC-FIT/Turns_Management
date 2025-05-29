@@ -1,6 +1,5 @@
 const { pool } = require('../config/db');
 
-// Helper function to validate turn data
 const validateTurnData = (data, isNew = true) => {
     const errors = [];
     if (isNew) {
@@ -20,7 +19,6 @@ const validateTurnData = (data, isNew = true) => {
     if (data.status && !['active', 'inactive'].includes(data.status.toLowerCase())) {
         errors.push('Invalid status. Must be "active" or "inactive".');
     }
-    // Basic time format check (HH:MM) - you might want a more robust regex
     const timeRegex = /^(?:2[0-3]|[01]?[0-9]):(?:[0-5]?[0-9])$/;
     if (data.start_time && !timeRegex.test(data.start_time)) {
         errors.push('Start time must be in HH:MM format.');
@@ -36,8 +34,6 @@ const validateTurnData = (data, isNew = true) => {
     return errors;
 };
 
-
-// GET /api/turns
 exports.getAllTurns = async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM turn');
@@ -48,9 +44,8 @@ exports.getAllTurns = async (req, res) => {
     }
 };
 
-// POST /api/turns
 exports.createTurn = async (req, res) => {
-    const { day, start_time, end_time, max_capacity, status, color_turn } = req.body; // Added color_turn based on DB schema [cite: 3]
+    const { day, start_time, end_time, max_capacity, status, color_turn } = req.body;
 
     const validationErrors = validateTurnData(req.body);
     if (validationErrors.length > 0) {
@@ -60,11 +55,11 @@ exports.createTurn = async (req, res) => {
     try {
         const [result] = await pool.query(
             'INSERT INTO turn (day, start_time, end_time, max_capacity, status, created_turn_at, color_turn) VALUES (?, ?, ?, ?, ?, NOW(), ?)',
-            [day, start_time, end_time, max_capacity, status, color_turn] // Pass color_turn [cite: 3]
+            [day, start_time, end_time, max_capacity, status, color_turn]
         );
         const newTurnId = result.insertId;
 
-        const [newTurn] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [newTurnId]); // id_turn based on schema [cite: 2]
+        const [newTurn] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [newTurnId]);
         res.status(201).json(newTurn[0]);
     } catch (error) {
         console.error('Error creating turn:', error);
@@ -72,11 +67,10 @@ exports.createTurn = async (req, res) => {
     }
 };
 
-// GET /api/turns/:id
 exports.getTurnById = async (req, res) => {
     const { id } = req.params;
     try {
-        const [rows] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [id]); // id_turn based on schema [cite: 2]
+        const [rows] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [id]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'Turn not found' });
         }
@@ -87,17 +81,15 @@ exports.getTurnById = async (req, res) => {
     }
 };
 
-// PUT /api/turns/:id
 exports.updateTurn = async (req, res) => {
     const { id } = req.params;
-    const { day, start_time, end_time, max_capacity, status, color_turn } = req.body; // Added color_turn [cite: 3]
+    const { day, start_time, end_time, max_capacity, status, color_turn } = req.body;
 
-    const validationErrors = validateTurnData(req.body, false); // isNew = false for updates
+    const validationErrors = validateTurnData(req.body, false);
     if (validationErrors.length > 0) {
         return res.status(400).json({ message: 'Validation failed', errors: validationErrors });
     }
 
-    // Build update query dynamically to only update provided fields
     let queryParts = [];
     const queryValues = [];
 
@@ -121,7 +113,7 @@ exports.updateTurn = async (req, res) => {
         queryParts.push('status = ?');
         queryValues.push(status);
     }
-    if (color_turn !== undefined) { // Add color_turn to update [cite: 3]
+    if (color_turn !== undefined) {
         queryParts.push('color_turn = ?');
         queryValues.push(color_turn);
     }
@@ -130,9 +122,9 @@ exports.updateTurn = async (req, res) => {
         return res.status(400).json({ message: 'No fields provided for update.' });
     }
 
-    queryParts.push('updated_turn_at = NOW()'); // Update timestamp [cite: 2]
+    queryParts.push('updated_turn_at = NOW()');
 
-    const query = `UPDATE turn SET ${queryParts.join(', ')} WHERE id_turn = ?`; // id_turn based on schema [cite: 2]
+    const query = `UPDATE turn SET ${queryParts.join(', ')} WHERE id_turn = ?`;
     queryValues.push(id);
 
     try {
@@ -140,7 +132,7 @@ exports.updateTurn = async (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Turn not found or no changes made' });
         }
-        const [updatedTurn] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [id]); // id_turn based on schema [cite: 2]
+        const [updatedTurn] = await pool.query('SELECT * FROM turn WHERE id_turn = ?', [id]);
         res.status(200).json(updatedTurn[0]);
     } catch (error) {
         console.error('Error updating turn:', error);
@@ -148,23 +140,89 @@ exports.updateTurn = async (req, res) => {
     }
 };
 
-// DELETE /api/turns/:id (or deactivate)
 exports.deleteTurn = async (req, res) => {
     const { id } = req.params;
     try {
-        // Option 1: Hard delete (be careful with this in production)
-        // const [result] = await pool.query('DELETE FROM turn WHERE id_turn = ?', [id]);
-
-        // Option 2: Soft delete (recommended for most applications) by setting status to 'inactive'
-        const [result] = await pool.query('UPDATE turn SET status = ?, updated_turn_at = NOW() WHERE id_turn = ?', ['inactive', id]); // 'inactive' from ENUM in schema [cite: 2]
-
+        const [result] = await pool.query('UPDATE turn SET status = ?, updated_turn_at = NOW() WHERE id_turn = ?', ['inactive', id]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Turn not found' });
         }
-        res.status(204).send(); // No content for successful deletion/deactivation
+        res.status(204).send();
     } catch (error) {
         console.error('Error deleting/deactivating turn:', error);
         res.status(500).json({ message: 'Error deleting/deactivating turn', error: error.message });
+    }
+};
+
+exports.getStudentsAssignedToTurn = async (req, res) => {
+    const { id: turnId } = req.params;
+
+    try {
+        const [turnRows] = await pool.query('SELECT id_turn FROM turn WHERE id_turn = ?', [turnId]);
+        if (turnRows.length === 0) {
+            return res.status(404).json({ message: 'Turn not found.' });
+        }
+
+        const [students] = await pool.query(
+            'SELECT id_student, state_schedule AS status FROM schedule WHERE id_turn = ?',
+            [turnId]
+        );
+        res.status(200).json(students);
+    } catch (error) {
+        console.error('Error fetching students assigned to turn:', error);
+        res.status(500).json({ message: 'Error retrieving students assigned to turn', error: error.message });
+    }
+};
+
+exports.getStudentsAssignedToTurnByDate = async (req, res) => {
+    const { id: turnId } = req.params;
+    const { date } = req.query;
+
+    if (!date) {
+        return res.status(400).json({ message: 'Date query parameter (YYYY-MM-DD) is required.' });
+    }
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date)) {
+        return res.status(400).json({ message: 'Invalid date format. Please use YYYY-MM-DD.' });
+    }
+
+    try {
+        const [turnRows] = await pool.query('SELECT id_turn FROM turn WHERE id_turn = ?', [turnId]);
+        if (turnRows.length === 0) {
+            return res.status(404).json({ message: 'Turn not found.' });
+        }
+
+        const [students] = await pool.query(
+            'SELECT id_student, state_schedule AS status FROM schedule WHERE id_turn = ? AND DATE(date_schedule) = ?',
+            [turnId, date]
+        );
+        res.status(200).json(students);
+    } catch (error) {
+        console.error('Error fetching students assigned to turn by date:', error);
+        res.status(500).json({ message: 'Error retrieving students assigned to turn by date', error: error.message });
+    }
+};
+
+exports.getCurrentStudentsAssignedToTurn = async (req, res) => {
+    const { id: turnId } = req.params;
+
+    try {
+        const [turnRows] = await pool.query('SELECT id_turn FROM turn WHERE id_turn = ?', [turnId]);
+        if (turnRows.length === 0) {
+            return res.status(404).json({ message: 'Turn not found.' });
+        }
+
+        const [students] = await pool.query(
+            `SELECT id_student, state_schedule AS status
+             FROM schedule
+             WHERE id_turn = ? AND state_schedule = 'scheduled' AND DATE(date_schedule) = CURDATE()`,
+            [turnId]
+        );
+        res.status(200).json(students);
+    } catch (error) {
+        console.error('Error fetching current students assigned to turn:', error);
+        res.status(500).json({ message: 'Error retrieving current students assigned to turn', error: error.message });
     }
 };
