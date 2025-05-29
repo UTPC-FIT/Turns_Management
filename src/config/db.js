@@ -4,7 +4,7 @@ const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    database: process.env.DB_DATABASE,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -16,7 +16,7 @@ async function connectDB() {
         console.log('Successfully connected to the database.');
     } catch (error) {
         console.error('Database connection failed:', error.message);
-        process.exit(1); // Exit process with failure
+        process.exit(1);
     }
 }
 
