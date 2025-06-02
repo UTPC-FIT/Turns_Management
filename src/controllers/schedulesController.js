@@ -135,32 +135,129 @@ exports.getCurrentValidSchedule = async (req, res) => {
     }
 };
 
-exports.updateScheduleStatus = async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
+exports.markAttendance = async (req, res) => {
+    const { student_id } = req.body;
 
-    if (!id) {
-        return res.status(400).json({ message: 'Schedule ID is required.' });
-    }
-    if (!status || !['attended', 'cancelled'].includes(status.toLowerCase())) {
-        return res.status(400).json({ message: 'Invalid status provided. Must be "attended" or "cancelled".' });
+    if (!student_id) {
+        return res.status(400).json({ message: 'student_id is required in the request body.' });
     }
 
     try {
-        const [result] = await pool.query(
-            'UPDATE schedule SET state_schedule = ?, updated_schedule_time = NOW() WHERE id_schedule = ?',
-            [status.toLowerCase(), id]
+        const now = new Date();
+        const todayDate = now.toISOString().slice(0, 10);
+
+        const [schedules] = await pool.query(
+            `SELECT
+                s.*,
+                t.start_time AS turn_start_time
+            FROM schedule s
+            JOIN turn t ON s.id_turn = t.id_turn
+            WHERE s.id_student = ?
+              AND s.state_schedule = 'scheduled'
+              AND DATE(s.date_schedule) <= ?
+            ORDER BY s.date_schedule ASC, t.start_time ASC`,
+            [student_id, todayDate]
         );
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Schedule not found or no changes made.' });
+        if (schedules.length === 0) {
+            return res.status(404).json({ message: 'No scheduled assignments found for this student for today or earlier.' });
         }
 
-        const [updatedSchedule] = await pool.query('SELECT * FROM schedule WHERE id_schedule = ?', [id]);
+        let targetSchedule = null;
+        for (const schedule of schedules) {
+            const scheduleDate = new Date(schedule.date_schedule);
+            const [turnHour, turnMinute, turnSecond] = schedule.turn_start_time.split(':').map(Number);
+            const fullScheduleDateTime = new Date(scheduleDate);
+            fullScheduleDateTime.setHours(turnHour, turnMinute, turnSecond || 0, 0);
+
+            if (fullScheduleDateTime.getTime() <= now.getTime()) {
+                targetSchedule = schedule;
+                break;
+            }
+        }
+
+        if (!targetSchedule) {
+             return res.status(404).json({ message: 'No current or past scheduled turns found for this student that can be marked attended.' });
+        }
+
+        const [updateResult] = await pool.query(
+            'UPDATE schedule SET state_schedule = ?, updated_schedule_time = NOW() WHERE id_schedule = ?',
+            ['attended', targetSchedule.id_schedule]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            return res.status(500).json({ message: 'Failed to mark attendance for schedule.' });
+        }
+
+        const [updatedSchedule] = await pool.query('SELECT * FROM schedule WHERE id_schedule = ?', [targetSchedule.id_schedule]);
         res.status(200).json(updatedSchedule[0]);
+
     } catch (error) {
-        console.error('Error updating schedule status:', error);
-        res.status(500).json({ message: 'Error updating schedule status', error: error.message });
+        console.error('Error marking attendance:', error);
+        res.status(500).json({ message: 'Error marking attendance', error: error.message });
+    }
+};
+
+exports.cancelSchedule = async (req, res) => {
+    const { student_id } = req.body;
+
+    if (!student_id) {
+        return res.status(400).json({ message: 'student_id is required in the request body.' });
+    }
+
+    try {
+        const now = new Date();
+        const todayDate = now.toISOString().slice(0, 10);
+
+        const [schedules] = await pool.query(
+            `SELECT
+                s.*,
+                t.start_time AS turn_start_time
+            FROM schedule s
+            JOIN turn t ON s.id_turn = t.id_turn
+            WHERE s.id_student = ?
+              AND s.state_schedule = 'scheduled'
+              AND DATE(s.date_schedule) <= ?
+            ORDER BY s.date_schedule ASC, t.start_time ASC`,
+            [student_id, todayDate]
+        );
+
+        if (schedules.length === 0) {
+            return res.status(404).json({ message: 'No scheduled assignments found for this student for today or earlier.' });
+        }
+
+        let targetSchedule = null;
+        for (const schedule of schedules) {
+            const scheduleDate = new Date(schedule.date_schedule);
+            const [turnHour, turnMinute, turnSecond] = schedule.turn_start_time.split(':').map(Number);
+            const fullScheduleDateTime = new Date(scheduleDate);
+            fullScheduleDateTime.setHours(turnHour, turnMinute, turnSecond || 0, 0);
+
+            if (fullScheduleDateTime.getTime() <= now.getTime()) {
+                targetSchedule = schedule;
+                break;
+            }
+        }
+
+        if (!targetSchedule) {
+             return res.status(404).json({ message: 'No current or past scheduled turns found for this student that can be cancelled.' });
+        }
+
+        const [updateResult] = await pool.query(
+            'UPDATE schedule SET state_schedule = ?, updated_schedule_time = NOW() WHERE id_schedule = ?',
+            ['cancelled', targetSchedule.id_schedule]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            return res.status(500).json({ message: 'Failed to cancel schedule.' });
+        }
+
+        const [updatedSchedule] = await pool.query('SELECT * FROM schedule WHERE id_schedule = ?', [targetSchedule.id_schedule]);
+        res.status(200).json(updatedSchedule[0]);
+
+    } catch (error) {
+        console.error('Error cancelling schedule:', error);
+        res.status(500).json({ message: 'Error cancelling schedule', error: error.message });
     }
 };
 

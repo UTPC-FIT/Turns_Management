@@ -11,6 +11,7 @@ router.get('/', (req, res, next) => {
 });
 router.get('/current', schedulesController.getCurrentValidSchedule);
 router.post('/', schedulesController.createSchedule);
-router.put('/:id/status', schedulesController.updateScheduleStatus);
+router.patch('/attendance/mark', schedulesController.markAttendance);
+router.patch('/attendance/cancel', schedulesController.cancelSchedule);
 
 module.exports = router;
