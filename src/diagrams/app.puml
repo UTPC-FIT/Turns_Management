@@ -1,0 +1,32 @@
+@startuml
+title Diagrama de Componentes - Turns Management
+
+package "App Server (Express)" {
+    [app.js] as App
+    [turns.js] as TurnsRoutes
+    [schedules.js] as SchedulesRoutes
+    [db.js] as DBConn
+}
+
+package "Controladores" {
+    [turnsController.js]
+    [schedulesController.js]
+}
+
+package "Dependencias externas" {
+    [express]
+    [dotenv]
+}
+
+App ..> express : require
+App ..> dotenv : require
+
+App --> TurnsRoutes : /api/turns
+App --> SchedulesRoutes : /api/schedules
+App --> DBConn : connectDB()
+
+TurnsRoutes --> [turnsController.js]
+SchedulesRoutes --> [schedulesController.js]
+DBConn --> [Database]
+
+@enduml
