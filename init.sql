@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `turn` (
 CREATE TABLE IF NOT EXISTS `schedule` (
   `id_schedule` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   `date_schedule` DATETIME,
-  `id_student` INT,
+  `id_student` VARCHAR(36),
   `id_turn` INT,
   -- UPDATED ENUM VALUES HERE:
   `state_schedule` ENUM('scheduled', 'attended', 'cancelled'),
