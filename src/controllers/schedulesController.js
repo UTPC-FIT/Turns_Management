@@ -170,10 +170,11 @@ exports.markAttendance = async (req, res) => {
             const fullScheduleDateTime = new Date(scheduleDate);
             fullScheduleDateTime.setHours(turnHour, turnMinute, turnSecond || 0, 0);
 
-            if (fullScheduleDateTime.getTime() <= now.getTime()) {
-                targetSchedule = schedule;
-                break;
-            }
+            // Agregar una hora al tiempo del turno
+            const extendedTime = new Date(fullScheduleDateTime.getTime() + 24 * 60 * 1000);
+
+            targetSchedule = schedule;
+
         }
 
         if (!targetSchedule) {
@@ -233,10 +234,11 @@ exports.cancelSchedule = async (req, res) => {
             const fullScheduleDateTime = new Date(scheduleDate);
             fullScheduleDateTime.setHours(turnHour, turnMinute, turnSecond || 0, 0);
 
-            if (fullScheduleDateTime.getTime() <= now.getTime()) {
-                targetSchedule = schedule;
-                break;
-            }
+            // Agregar una hora al tiempo del turno
+            const extendedTime = new Date(fullScheduleDateTime.getTime() + 60 * 100 * 1000);
+
+            targetSchedule = schedule;
+
         }
 
         if (!targetSchedule) {
