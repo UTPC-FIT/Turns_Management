@@ -34,7 +34,8 @@ services:
         condition: service_healthy
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules
+      - node_modules:/usr/src/app/node_modules
 
 volumes:
   db_data:
+  node_modules:
